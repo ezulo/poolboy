@@ -1,5 +1,14 @@
 node_modules
-package-lock.json
+
+# IDE stuff
+.idea/
+.vscode/
+
+# Test coverage
+coverage/
+
+# Drizzle migrations
+drizzle/
 
 # Output
 .output
