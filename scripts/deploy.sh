@@ -18,6 +18,11 @@ else
   SSH_CMD="ssh -i $POOLBOY_SSH_KEY"
 fi
 
+# Derive ORIGIN from POOLBOY_HOST (strip user@, add port)
+POOLBOY_HOSTNAME="${POOLBOY_HOST#*@}"
+POOLBOY_PORT="${POOLBOY_PORT:-3000}"
+POOLBOY_ORIGIN="http://${POOLBOY_HOSTNAME}"
+
 
 # Build locally
 echo "Building..."
@@ -31,8 +36,22 @@ $SSH_CMD "$POOLBOY_HOST" "source ~/.nvm/nvm.sh && pm2 stop poolboy 2>/dev/null |
 echo "Syncing files..."
 rsync -avz -e "$SSH_CMD" --delete build/ "$POOLBOY_HOST:$POOLBOY_REMOTE_PATH/build/"
 
-# Sync package files and pm2 config
-rsync -avz -e "$SSH_CMD" package.json package-lock.json ecosystem.config.cjs "$POOLBOY_HOST:$POOLBOY_REMOTE_PATH/"
+# Sync package files
+rsync -avz -e "$SSH_CMD" package.json package-lock.json "$POOLBOY_HOST:$POOLBOY_REMOTE_PATH/"
+
+# Generate pm2 config with correct ORIGIN
+$SSH_CMD "$POOLBOY_HOST" "cat > $POOLBOY_REMOTE_PATH/ecosystem.config.cjs << PMEOF
+module.exports = {
+  apps: [{
+    name: 'poolboy',
+    script: 'build/index.js',
+    env: {
+      DATABASE_URL: 'local.db',
+      ORIGIN: '$POOLBOY_ORIGIN:$POOLBOY_PORT'
+    }
+  }]
+}
+PMEOF"
 
 # Create fresh database if server doesn't have one (or if overwrite requested)
 if [ -n "$POOLBOY_DB_OVERWRITE" ] || ! $SSH_CMD "$POOLBOY_HOST" "test -f $POOLBOY_REMOTE_PATH/local.db"; then
@@ -47,5 +66,8 @@ fi
 echo "Installing dependencies and restarting..."
 $SSH_CMD "$POOLBOY_HOST" "source ~/.nvm/nvm.sh && cd $POOLBOY_REMOTE_PATH && npm ci --omit=dev && pm2 start ecosystem.config.cjs"
 
-echo "Deployed."
+echo "-------------------------"
+echo "Deployment successful! :)"
+echo "Hosting at: $POOLBOY_ORIGIN:$POOLBOY_PORT"
+echo "-------------------------"
 
