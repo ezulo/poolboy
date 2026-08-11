@@ -162,16 +162,30 @@ npm run format     # Auto-format code
 # Build
 npm run build
 npm run preview
+
 ```
 
 ## Deployment
 
-The app uses `@sveltejs/adapter-auto` which auto-detects deployment targets:
+The app uses `@sveltejs/adapter-node`.
 
-- **Vercel** - Zero config, SQLite persists in serverless function (ephemeral)
-- **Node.js** - Use `adapter-node` for persistent SQLite
-- **Static** - Not suitable (requires server for database)
+Server requires node>=v22 for SQLite support. Path specified in `POOLBOY_REMOTE_PATH` must exist.
 
-For production with persistent data, consider:
-- Turso (libSQL) for edge-compatible SQLite
-- PostgreSQL with Drizzle's PostgreSQL adapter
+```bash
+# Deploy with default SSH user settings
+env POOLBOY_HOST=server.home.arpa \
+    POOLBOY_REMOTE_PATH=/opt/poolboy \
+    scripts/deploy.sh
+
+# Deploy with custom SSH user settings
+env POOLBOY_HOST=user@server.home.arpa \
+    POOLBOY_REMOTE_PATH=/opt/poolboy \
+    POOLBOY_SSH_KEY=~/path/to/id_sshkey \
+    scripts/deploy.sh
+
+```
+
+To force database schema overwrite, set `POOLBOY_DB_OVERWRITE=1`
+
+To specify port, `POOLBOY_PORT=1234`.
+
